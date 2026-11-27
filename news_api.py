@@ -110,7 +110,8 @@ app = FastAPI(title="DailyPulse news API", version=VERSION, lifespan=lifespan)
 
 
 def newsroom(request: Request) -> Newsroom:
-    return request.app.state.newsroom
+    room: Newsroom = request.app.state.newsroom  # app.state holds anything: say what this is
+    return room
 
 
 Room = Annotated[Newsroom, Depends(newsroom)]
