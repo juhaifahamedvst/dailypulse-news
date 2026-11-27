@@ -1,6 +1,6 @@
 # DailyPulse news stack
 
-The DailyPulse news API 1.1.0 with everything it needs, started with one command: nginx in front, two copies of the
+The DailyPulse news API 1.2.0 with everything it needs, started with one command: nginx in front, two copies of the
 API, a Celery worker for push alerts, PostgreSQL for the archive and Redis for the banner and the queue.
 
 - Tests, with no database: `uv run pytest`

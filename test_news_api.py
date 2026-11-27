@@ -35,7 +35,7 @@ def client_with(alerts: list[str]) -> TestClient:
 
 def test_health_says_which_version() -> None:
     answer = client_with([]).get("/healthz")
-    assert answer.json()["version"] == "1.1.0"
+    assert answer.json()["version"] == "1.2.0"
 
 
 def test_headlines_by_section() -> None:
