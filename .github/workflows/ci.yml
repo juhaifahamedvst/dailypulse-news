@@ -1,4 +1,4 @@
-# DailyPulse's checks (lesson 40.3): the four commands of the PC, on the image's Python and on the next one.
+# DailyPulse's checks (lesson 40.4): the code, the commit messages and the shell scripts, on every pull request.
 name: ci
 
 on:
@@ -8,6 +8,10 @@ on:
 
 permissions:
   contents: read # the workflow only reads the code
+
+concurrency: # a new push to a pull request cancels the run that is still checking the old one
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   checks:
@@ -35,3 +39,19 @@ jobs:
         run: uv run mypy .
       - name: Tests
         run: uv run pytest
+
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Get the code, with its history
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0 # every commit, so the script can see the pull request's own
+      - name: Commit messages (Chapter 17's rule)
+        run: sh scripts/check_commits.sh "origin/$BASE"
+        env:
+          BASE: ${{ github.base_ref }}
+      - name: Shell scripts
+        run: shellcheck scripts/*.sh
