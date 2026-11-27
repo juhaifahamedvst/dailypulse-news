@@ -150,3 +150,9 @@ async def set_breaking(
     room.alert(item.text)
     logger.info("breaking news: %s", item.text)
     return item
+
+
+@app.get("/v1/sections")
+async def sections() -> dict[str, list[str]]:
+    """The sections the phone app shows as tabs."""
+    return {"sections": ["city", "election", "traffic", "weather"]}
