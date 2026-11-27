@@ -91,7 +91,7 @@ jobs:
 
   image:
     needs: [checks, stack]
-    if: github.event_name == 'push' && github.ref == 'main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
