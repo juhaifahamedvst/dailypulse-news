@@ -1,0 +1,18 @@
+[project]
+name = "dailypulse-news"
+version = "1.1.0"
+description = "DailyPulse's news API: the headlines for the phone app and the website."
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "celery[redis]>=5.7.0",
+    "fastapi[standard]>=0.165.0",
+    "psycopg[binary]>=3.3.9",
+    "redis>=8.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "fakeredis>=2.41.0",
+    "pytest>=9.2.0",
+]

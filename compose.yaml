@@ -1,0 +1,130 @@
+# DailyPulse's whole stack for election night: one `docker compose up` (lesson 39.7)
+name: dailypulse
+
+services:
+  proxy: # the front door: nginx hands each request to one of the API's containers
+    image: nginx:1.30.8
+    ports:
+      - "127.0.0.1:8039:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks: [front]
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 10s
+    restart: unless-stopped
+
+  api:
+    build: .
+    image: dailypulse-news:${DAILYPULSE_TAG:?set DAILYPULSE_TAG in .env}
+    env_file: news.env
+    secrets: [db_password, editor_key]
+    networks: [front, back]
+    deploy:
+      replicas: 2
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      cache:
+        condition: service_healthy
+    stop_grace_period: 30s
+    restart: unless-stopped
+    develop: # docker compose watch: rebuild the API when its files change (lesson 39.5)
+      watch:
+        - action: rebuild
+          path: .
+
+  worker:
+    image: dailypulse-news:${DAILYPULSE_TAG:?set DAILYPULSE_TAG in .env}
+    command: ["celery", "-A", "tasks", "worker", "--concurrency=2", "--loglevel=INFO"]
+    env_file: news.env
+    secrets: [db_password]
+    networks: [back]
+    healthcheck: # the image's check asks the API on port 8000; a worker has no port
+      test: ["CMD-SHELL", "celery -A tasks inspect ping -d celery@$$HOSTNAME --timeout 5"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      cache:
+        condition: service_healthy
+    stop_grace_period: 60s
+    restart: unless-stopped
+
+  migrate:
+    image: dailypulse-news:${DAILYPULSE_TAG:?set DAILYPULSE_TAG in .env}
+    command: ["python", "migrate.py"]
+    env_file: news.env
+    secrets: [db_password]
+    networks: [back]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:19.0
+    environment:
+      POSTGRES_USER: news
+      POSTGRES_DB: archive
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes:
+      - archive:/var/lib/postgresql
+    networks: [back]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U news -d archive"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    stop_grace_period: 30s # time to finish writing; without it Docker Desktop waits 1 second
+    restart: unless-stopped
+
+  cache:
+    image: redis:8.12.0
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    volumes:
+      - cache:/data
+    networks: [back]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    stop_grace_period: 10s # Redis saves its data file as it stops
+    restart: unless-stopped
+
+  backup: # only with --profile tools: docker compose --profile tools run --rm backup
+    image: postgres:19.0
+    profiles: [tools]
+    command: # $$ is a plain $ for the shell; Compose would read ${...} itself
+      - sh
+      - -c
+      - >-
+        PGPASSWORD="$$(cat /run/secrets/db_password)"
+        pg_dump -h db -U news -f /backup/archive.sql archive
+    secrets: [db_password]
+    volumes:
+      - ./backups:/backup
+    networks: [back]
+    depends_on:
+      db:
+        condition: service_healthy
+
+networks:
+  front: {}
+  back:
+    internal: true # no way out to the internet: the archive and the cache only talk to the stack
+
+volumes:
+  archive:
+  cache:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  editor_key:
+    file: ./secrets/editor_key.txt

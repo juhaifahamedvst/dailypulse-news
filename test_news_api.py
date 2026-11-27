@@ -1,0 +1,56 @@
+"""The news API's tests, with no PostgreSQL, Redis or worker: run them with `uv run pytest`.
+
+The endpoints get their newsroom from one dependency, so each test gives them one made of
+fakes: the headlines in a list, fakeredis for the banner, and a list that collects the alerts.
+"""
+
+import fakeredis
+from fastapi.testclient import TestClient
+
+import news_api
+from news_api import Headline, Newsroom
+
+HEADLINES = [
+    Headline(id=9001, section="city", title="Council approves the new tram line"),
+    Headline(id=9003, section="weather", title="Snow expected on Thursday night"),
+]
+
+
+class MemoryArchive:
+    async def headlines(self, section: str | None) -> list[Headline]:
+        return [item for item in HEADLINES if section in (None, item.section)]
+
+
+def client_with(alerts: list[str]) -> TestClient:
+    room = Newsroom(
+        edition="city",
+        editor_key="test-key",
+        archive=MemoryArchive(),
+        cache=fakeredis.FakeAsyncRedis(decode_responses=True),
+        alert=alerts.append,
+    )
+    news_api.app.dependency_overrides[news_api.newsroom] = lambda: room
+    return TestClient(news_api.app)
+
+
+def test_health_says_which_version() -> None:
+    answer = client_with([]).get("/healthz")
+    assert answer.json()["version"] == "1.1.0"
+
+
+def test_headlines_by_section() -> None:
+    answer = client_with([]).get("/v1/headlines", params={"section": "weather"})
+    assert [item["id"] for item in answer.json()["headlines"]] == [9003]
+
+
+def test_breaking_news_needs_the_key_and_queues_one_alert() -> None:
+    alerts: list[str] = []
+    client = client_with(alerts)
+    refused = client.post("/v1/breaking", json={"text": "Polls close at 22:00"})
+    assert refused.status_code == 401
+    sent = client.post(
+        "/v1/breaking", json={"text": "Polls close at 22:00"}, headers={"X-Editor-Key": "test-key"}
+    )
+    assert sent.status_code == 201
+    assert client.get("/v1/headlines").json()["breaking"] == "Polls close at 22:00"
+    assert alerts == ["Polls close at 22:00"]

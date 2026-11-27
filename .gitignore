@@ -1,0 +1,12 @@
+# Made by tools: never in Git
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Settings and secrets for one PC: never in Git (Chapter 39)
+.env
+news.env
+secrets/
+backups/
