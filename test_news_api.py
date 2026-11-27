@@ -65,3 +65,10 @@ def test_the_banner_alone() -> None:
         headers={"X-Editor-Key": "test-key"},
     )
     assert client.get("/v1/breaking").json() == {"breaking": "Turnout passes 60 percent"}
+
+
+def test_the_sections_for_the_app_tabs() -> None:
+    client = client_with([])
+    assert client.get("/v1/sections").json() == {
+        "sections": ["city", "election", "traffic", "weather"]
+    }
