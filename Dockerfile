@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# DailyPulse news API 1.1.0: two stages (lesson 39.5). One image runs the API, the worker and migrate.
+# DailyPulse news API: two stages that ship (lesson 39.5), and a test stage for CI (lesson 40.5).
 
 # Stage 1, build: uv installs the packages into /app/.venv. Nothing else from here ships.
 FROM python:3.14.10-slim-trixie AS build
@@ -13,7 +13,15 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 
-# Stage 2, runtime: the same Python image, the .venv and the code. No uv.
+# Stage 2, test: only with --target test. The dev packages and the tests, on the image's own Python.
+FROM build AS test
+ENV UV_NO_DEV=0
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked
+COPY *.py ./
+RUN uv run --no-sync pytest -q
+
+# Stage 3, runtime: the same Python image, the .venv and the code. No uv, no tests.
 FROM python:3.14.10-slim-trixie AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
