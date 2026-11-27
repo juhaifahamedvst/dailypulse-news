@@ -1,0 +1,91 @@
+# DailyPulse's release (lesson 40.7): a tag like v1.2.0 becomes an image, a GitHub release and a deploy.
+name: release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"] # only version tags; a tag called "test" starts nothing
+
+permissions:
+  contents: read
+
+concurrency: # one release at a time: a second tag waits for the first, it never cancels it
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - name: Get the tagged code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The tag matches the version in the code
+        run: sh scripts/check_version.sh "$TAG"
+        env:
+          TAG: ${{ github.ref_name }}
+
+  image:
+    needs: version
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Log in to GitHub's container registry
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Names for the image (1.2.0, 1.2 and latest)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Build and push, from scratch (a release never trusts a cache)
+        id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  notes:
+    needs: image
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    permissions:
+      contents: write # create the GitHub release
+    steps:
+      - name: A GitHub release, with notes made from the merged pull requests
+        run: gh release create "$TAG" --repo "$REPO" --verify-tag --generate-notes --title "News API $TAG"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+
+  deploy:
+    needs: [image, notes]
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    environment: # waits here until a required reviewer approves
+      name: production
+      url: https://news.dailypulse.example
+    steps:
+      - name: Deploy the image by its digest (Chapter 41 sends it to a real server)
+        run: |
+          echo "deploying $IMAGE@$DIGEST to production"
+          echo "to roll back: re-run the deploy job of the previous release's run"
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DIGEST: ${{ needs.image.outputs.digest }}
