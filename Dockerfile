@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1
-# DailyPulse news API: two stages that ship (lesson 39.5), and a test stage for CI (lesson 40.5).
+# DailyPulse news API: two stages that ship (lesson 39.5), a test stage for CI (40.5), pinned by digest (40.6).
 
 # Stage 1, build: uv installs the packages into /app/.venv. Nothing else from here ships.
-FROM python:3.14.10-slim-trixie AS build
-COPY --from=ghcr.io/astral-sh/uv:0.13.10 /uv /uvx /bin/
+FROM python:3.14.10-slim-trixie@sha256:22eafb370920ad8b429e0aec3fff433e0669968519f5d60469d83729c138b28b AS build
+COPY --from=ghcr.io/astral-sh/uv:0.13.10@sha256:a3ea1357342c1a4bf9a0c53a3deb1b55379aefa037338d8113d5771efa01774f /uv /uvx /bin/
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     UV_NO_DEV=1 \
@@ -22,7 +22,7 @@ COPY *.py ./
 RUN uv run --no-sync pytest -q
 
 # Stage 3, runtime: the same Python image, the .venv and the code. No uv, no tests.
-FROM python:3.14.10-slim-trixie AS runtime
+FROM python:3.14.10-slim-trixie@sha256:22eafb370920ad8b429e0aec3fff433e0669968519f5d60469d83729c138b28b AS runtime
 ENV PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 RUN groupadd --system --gid 10001 dailypulse \
