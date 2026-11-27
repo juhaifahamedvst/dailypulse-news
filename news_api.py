@@ -133,6 +133,12 @@ async def headlines(room: Room, section: str | None = None) -> dict[str, object]
     }
 
 
+@app.get("/v1/breaking")
+async def breaking(room: Room) -> dict[str, object]:
+    """Only the banner: on election night the phone app asks for it every 10 seconds."""
+    return {"breaking": await room.cache.get("breaking")}
+
+
 @app.post("/v1/breaking", status_code=201)
 async def set_breaking(
     item: Breaking, room: Room, x_editor_key: Annotated[str, Header()] = ""
