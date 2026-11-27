@@ -1,0 +1,31 @@
+# Dependabot (lesson 40.6): once a week it opens a pull request for each new version, and CI checks it.
+# cooldown: a brand-new release waits 7 days first; most bad or hijacked releases are pulled by then.
+version: 2
+updates:
+  - package-ecosystem: github-actions # the uses: lines, SHA pins and their # v1.2.3 comments
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions: # one pull request for all the actions, not one each
+        patterns: ["*"]
+  - package-ecosystem: docker # the FROM lines of the Dockerfile, digests too
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: docker-compose # nginx, postgres and redis in compose.yaml
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+  - package-ecosystem: uv # pyproject.toml and uv.lock
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
