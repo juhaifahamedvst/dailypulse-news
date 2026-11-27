@@ -54,3 +54,14 @@ def test_breaking_news_needs_the_key_and_queues_one_alert() -> None:
     assert sent.status_code == 201
     assert client.get("/v1/headlines").json()["breaking"] == "Polls close at 22:00"
     assert alerts == ["Polls close at 22:00"]
+
+
+def test_the_banner_alone() -> None:
+    client = client_with([])
+    assert client.get("/v1/breaking").json() == {"breaking": None}
+    client.post(
+        "/v1/breaking",
+        json={"text": "Turnout passes 60 percent"},
+        headers={"X-Editor-Key": "test-key"},
+    )
+    assert client.get("/v1/breaking").json() == {"breaking": "Turnout passes 60 percent"}
