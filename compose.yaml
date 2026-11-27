@@ -3,7 +3,7 @@ name: dailypulse
 
 services:
   proxy: # the front door: nginx hands each request to one of the API's containers
-    image: nginx:1.30.8
+    image: nginx:1.31.0
     ports:
       - "127.0.0.1:8039:80"
     volumes:
