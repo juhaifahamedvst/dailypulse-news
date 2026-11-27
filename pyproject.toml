@@ -1,6 +1,6 @@
 [project]
 name = "dailypulse-news"
-version = "1.1.0"
+version = "1.2.0"
 description = "DailyPulse's news API: the headlines for the phone app and the website."
 readme = "README.md"
 requires-python = ">=3.14"
