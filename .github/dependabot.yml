@@ -17,12 +17,18 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      - dependency-name: python # 3.14 -> 3.15 is the team's decision: .python-version, the matrix, the image
+        update-types: ["version-update:semver-minor"]
   - package-ecosystem: docker-compose # nginx, postgres and redis in compose.yaml
     directory: /
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      - dependency-name: nginx # stay on the stable line (1.30.x); 1.31.x is nginx's mainline
+        update-types: ["version-update:semver-minor"]
   - package-ecosystem: uv # pyproject.toml and uv.lock
     directory: /
     schedule:
