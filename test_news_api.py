@@ -4,11 +4,14 @@ The endpoints get their newsroom from one dependency, so each test gives them on
 fakes: the headlines in a list, fakeredis for the banner, and a list that collects the alerts.
 """
 
+import asyncio
+
 import fakeredis
+import pytest
 from fastapi.testclient import TestClient
 
 import news_api
-from news_api import Headline, Newsroom
+from news_api import Headline, MemoryBanner, Newsroom, RedisBanner
 
 HEADLINES = [
     Headline(id=9001, section="city", title="Council approves the new tram line"),
@@ -16,7 +19,7 @@ HEADLINES = [
 ]
 
 
-class MemoryArchive:
+class ListArchive:
     async def headlines(self, section: str | None) -> list[Headline]:
         return [item for item in HEADLINES if section in (None, item.section)]
 
@@ -25,8 +28,8 @@ def client_with(alerts: list[str]) -> TestClient:
     room = Newsroom(
         edition="city",
         editor_key="test-key",
-        archive=MemoryArchive(),
-        cache=fakeredis.FakeAsyncRedis(decode_responses=True),
+        archive=ListArchive(),
+        banner=RedisBanner(fakeredis.FakeAsyncRedis(decode_responses=True)),
         alert=alerts.append,
     )
     news_api.app.dependency_overrides[news_api.newsroom] = lambda: room
@@ -36,6 +39,11 @@ def client_with(alerts: list[str]) -> TestClient:
 def test_health_says_which_version() -> None:
     answer = client_with([]).get("/healthz")
     assert answer.json()["version"] == "1.2.0"
+
+
+def test_health_on_a_path_without_a_z() -> None:
+    answer = client_with([]).get("/v1/health").json()
+    assert (answer["status"], answer["version"], answer["revision"]) == ("ok", "1.2.0", "none")
 
 
 def test_headlines_by_section() -> None:
@@ -72,3 +80,20 @@ def test_the_sections_for_the_app_tabs() -> None:
     assert client.get("/v1/sections").json() == {
         "sections": ["city", "election", "traffic", "weather"]
     }
+
+
+def test_a_memory_banner_lives_in_one_copy_only() -> None:
+    first, second = MemoryBanner(), MemoryBanner()
+    asyncio.run(first.put("Polls close at 22:00"))
+    assert asyncio.run(first.get()) == "Polls close at 22:00"
+    assert asyncio.run(second.get()) is None  # another copy of the API never sees it
+
+
+def test_the_preview_store_starts_with_no_servers(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DAILYPULSE_STORE", "memory")
+    monkeypatch.setenv("DAILYPULSE_EDITOR_KEY", "test-key")
+    news_api.app.dependency_overrides.clear()
+    with TestClient(news_api.app) as client:  # runs the lifespan: no archive, no Redis
+        answer = client.get("/v1/headlines").json()
+    assert [item["id"] for item in answer["headlines"]] == [9001, 9002, 9003, 9004, 9005]
+    assert answer["breaking"] is None
