@@ -29,7 +29,7 @@ from redis.backoff import ExponentialWithJitterBackoff
 from settings import archive_conninfo, setting
 from tasks import send_push_alert
 
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 logging.basicConfig(
     level=setting("DAILYPULSE_LOG_LEVEL", "INFO"),
