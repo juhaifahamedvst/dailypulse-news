@@ -1,4 +1,4 @@
-"""DailyPulse's news API, version 1.3.0: ready for the cloud (Chapter 41).
+"""DailyPulse's news API, version 1.3.1: ready for the cloud (Chapter 41).
 
 The headlines come from the news archive (PostgreSQL). The breaking-news banner lives in Redis, so
 every copy of the API shows the same one. Each new banner queues a push alert for the Celery
@@ -29,7 +29,7 @@ from redis.backoff import ExponentialWithJitterBackoff
 from settings import archive_conninfo, setting
 from tasks import send_push_alert
 
-VERSION = "1.3.0"
+VERSION = "1.3.1"
 
 logging.basicConfig(
     level=setting("DAILYPULSE_LOG_LEVEL", "INFO"),

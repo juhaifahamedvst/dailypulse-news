@@ -40,12 +40,12 @@ def client_with(alerts: list[str]) -> TestClient:
 
 def test_health_says_which_version() -> None:
     answer = client_with([]).get("/healthz")
-    assert answer.json()["version"] == "1.3.0"
+    assert answer.json()["version"] == "1.3.1"
 
 
 def test_health_on_a_path_without_a_z() -> None:
     answer = client_with([]).get("/v1/health").json()
-    assert (answer["status"], answer["version"], answer["revision"]) == ("ok", "1.3.0", "none")
+    assert (answer["status"], answer["version"], answer["revision"]) == ("ok", "1.3.1", "none")
 
 
 def test_headlines_by_section() -> None:
