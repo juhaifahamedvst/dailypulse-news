@@ -23,7 +23,14 @@ def setting(name: str, default: str | None = None) -> str:
 
 
 def archive_conninfo() -> str:
-    """How to reach the news archive. In Compose, the host is the service's name: db."""
+    """How to reach the news archive.
+
+    In the cloud, one connection string: DAILYPULSE_DB_URL (or the file DAILYPULSE_DB_URL_FILE
+    names), the way Render hands a database to a web service (Chapter 41). In Compose, four
+    parts, and the host is the service's name: db.
+    """
+    if os.environ.get("DAILYPULSE_DB_URL") or os.environ.get("DAILYPULSE_DB_URL_FILE"):
+        return make_conninfo(setting("DAILYPULSE_DB_URL"), connect_timeout=3)
     return make_conninfo(
         host=setting("DAILYPULSE_DB_HOST"),
         dbname=setting("DAILYPULSE_DB_NAME"),
