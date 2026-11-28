@@ -9,9 +9,11 @@ import asyncio
 import fakeredis
 import pytest
 from fastapi.testclient import TestClient
+from psycopg.conninfo import conninfo_to_dict
 
 import news_api
 from news_api import Headline, MemoryBanner, Newsroom, RedisBanner
+from settings import archive_conninfo
 
 HEADLINES = [
     Headline(id=9001, section="city", title="Council approves the new tram line"),
@@ -97,3 +99,20 @@ def test_the_preview_store_starts_with_no_servers(monkeypatch: pytest.MonkeyPatc
         answer = client.get("/v1/headlines").json()
     assert [item["id"] for item in answer["headlines"]] == [9001, 9002, 9003, 9004, 9005]
     assert answer["breaking"] is None
+
+
+def test_one_connection_string_is_enough(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DAILYPULSE_DB_URL", "postgresql://news:pw@dpg-example-a/archive")
+    assert conninfo_to_dict(archive_conninfo()) == {
+        "host": "dpg-example-a",
+        "dbname": "archive",
+        "user": "news",
+        "password": "pw",
+        "connect_timeout": "3",
+    }
+
+
+def test_the_four_parts_still_work(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name, value in [("HOST", "db"), ("NAME", "archive"), ("USER", "news"), ("PASSWORD", "pw")]:
+        monkeypatch.setenv(f"DAILYPULSE_DB_{name}", value)
+    assert conninfo_to_dict(archive_conninfo())["host"] == "db"
